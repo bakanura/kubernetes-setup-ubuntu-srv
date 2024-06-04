@@ -81,7 +81,7 @@ sudo apt-mark hold kubelet kubeadm kubectl
 sudo kubeadm config images pull
 
 # Kubeadm init
-publicIP=192.168.0.99
-ip_address=192.168.0.99  
+publicIP=192.168.0.x
+ip_address=192.168.0.x  
 cidr=172.18.0.0/16
 sudo kubeadm init --control-plane-endpoint $publicIP --apiserver-advertise-address $ip_address --pod-network-cidr=$cidr --upload-certs
