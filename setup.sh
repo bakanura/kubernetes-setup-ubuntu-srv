@@ -1,6 +1,7 @@
 sudo apt-get update
 sudo apt-get install -y apt-transport-https ca-certificates curl
 sudo apt update
+sudo apt upgrade -y
 sudo apt install firewalld
 sudo systemctl enable firewalld
 sudo systemctl start firewalld
