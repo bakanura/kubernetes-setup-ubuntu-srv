@@ -59,11 +59,21 @@ sudo curl -L https://download.opensuse.org/repositories/devel:kubic:libcontainer
 sudo curl -L https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/$OS/Release.key | sudo apt-key --keyring /etc/apt/trusted.gpg.d/libcontainers.gpg add -
 
 # Update and refresh package index
-sudo apt update
-sudo apt upgrade
+sudo apt-get update 
+sudo apt upgrade -y
 
 # Install CRI-O container runtime
-sudo apt install cri-o cri-o-runc
+sudo apt install -y cri-o cri-o-runc
+
+# Restarting Cri-o to check for errors
+sudo systemctl restart crio
+
+# Enabling CRI-O service to start at boot
+sudo systemctl enable crio
+
+# Checking CRI-O service status
+sudo systemctl status crio
+apt-cache policy cri-o
 
 # Add the Kube-Repo
 sudo echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.28/deb/ /" | sudo tee /etc/apt/sources.list.d/kubernetes.list
@@ -75,13 +85,45 @@ sudo apt-get update
 sudo apt install -y kubeadm kubelet kubectl
 
 # Prevent them from being updated automatically
-sudo apt-mark hold kubelet kubeadm kubectl
+sudo apt-mark -y hold kubelet kubeadm kubectl
 
 # Pull container images for Kubernetes beforehand
 sudo kubeadm config images pull
 
 # Kubeadm init
-publicIP=192.168.0.x
-ip_address=192.168.0.x  
+publicIP=192.168.0.174
+ip_address=192.168.0.174
 cidr=172.18.0.0/16
 sudo kubeadm init --control-plane-endpoint $publicIP --apiserver-advertise-address $ip_address --pod-network-cidr=$cidr --upload-certs
+
+# Save time by setting kubectl to "kc"
+echo 'alias kc=kubectl' >>~/.bashrc 
+echo 'source <(kubectl completion bash)' >>~/.bashrc 
+echo 'complete -F __start_kubectl kc' >>~/.bashrc
+
+### OR (recommended by official documentation)
+#### setup autocomplete in bash into the current shell, bash-completion package should be installed first.
+source <(kubectl completion bash)
+#### add autocomplete permanently to your bash shell.
+echo "source <(kubectl completion bash)" >> ~/.bashrc 
+#### shorthand alias
+alias kc=kubectl
+complete -F __start_kubectl kc
+
+# Same for kubeadm > "ka"
+#### setup autocomplete in bash into the current shell, bash-completion package should be installed first. 
+source <(kubectl completion bash)
+#### add autocomplete permanently to your bash shell.
+echo "source <(kubectl completion bash)" >> ~/.bashrc 
+#### shorthand alias
+alias ka=kubeadm
+complete -F __start_kubectl ka
+
+# To start using your cluster, you need to run the following as a regular user
+mkdir -p $HOME/.kube
+sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+sudo chown $(id -u):$(id -g) $HOME/.kube/config
+
+# Install Weave
+kubectl apply -f https://github.com/weaveworks/weave/releases/download/v2.8.1/weave-daemonset-k8s.yaml
+
