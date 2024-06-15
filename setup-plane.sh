@@ -82,10 +82,10 @@ sudo curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.28/deb/Release.key | sudo g
 sudo apt-get update
 
 # installs the Kubernetes components/packages
-sudo apt install -y kubeadm kubelet kubectl
+sudo apt install -y kubeadm kubelet kubectl --allow-change-held-packages
 
 # Prevent them from being updated automatically
-sudo apt-mark -y hold kubelet kubeadm kubectl
+sudo apt-mark -y hold kubelet kubeadm kubectl 
 
 # Pull container images for Kubernetes beforehand
 sudo kubeadm config images pull
