@@ -85,21 +85,21 @@ sudo apt-get update
 sudo apt install -y kubeadm kubelet kubectl --allow-change-held-packages
 
 # Prevent them from being updated automatically
-sudo apt-mark -y hold kubelet kubeadm kubectl 
+sudo apt-mark hold kubelet kubeadm kubectl 
 
 # Pull container images for Kubernetes beforehand
 sudo kubeadm config images pull
-
-# Kubeadm init
-publicIP=192.168.0.174
-ip_address=192.168.0.174
-cidr=172.18.0.0/16
-sudo kubeadm init --control-plane-endpoint $publicIP --apiserver-advertise-address $ip_address --pod-network-cidr=$cidr --upload-certs
 
 # Save time by setting kubectl to "kc"
 echo 'alias kc=kubectl' >>~/.bashrc 
 echo 'source <(kubectl completion bash)' >>~/.bashrc 
 echo 'complete -F __start_kubectl kc' >>~/.bashrc
+
+# Kubeadm init
+publicIP=192.168.1.118
+ip_address=192.168.1.118
+cidr=172.18.0.0/16
+sudo kubeadm init --control-plane-endpoint $publicIP --apiserver-advertise-address $ip_address --pod-network-cidr=$cidr --upload-certs
 
 ### OR (recommended by official documentation)
 #### setup autocomplete in bash into the current shell, bash-completion package should be installed first.
