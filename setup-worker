@@ -88,7 +88,11 @@ sudo apt-mark hold kubelet kubeadm kubectl
 sudo kubeadm config images pull
 
 # Kubeadm init
-### Worker Node also nein
+### Worker Node!
+
+kubectl config set-context ~/.kube/kubeconfig1.yml
+kubectl config use-context ~/.kube/kubeconfig1.yml
+export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
 
 # Save time by setting kubectl to "kc"
 echo 'alias kc=kubectl' >>~/.bashrc 
