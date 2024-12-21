@@ -27,6 +27,7 @@ if [ ! -d "/home/baka/.kube" ]; then
 fi
 
 # Enable necessary MicroK8s services (dns, storage, and dashboard)
+echo "Enabling MicroK8s services: DNS, Storage, and Dashboard..."
 microk8s enable dns storage dashboard
 
 # Update the MicroK8s API server to bind to the local IP
@@ -37,22 +38,32 @@ sudo sed -i "s/--bind-address=0.0.0.0/--bind-address=$LOCAL_IP/" /var/snap/micro
 sudo systemctl daemon-reload
 
 # Restart the entire MicroK8s service to apply changes
+echo "Restarting MicroK8s services..."
 sudo snap restart microk8s
 
 # Update the kubectl config to use the new server address
+echo "Updating kubectl config to use the new server address..."
 microk8s kubectl config set-cluster microk8s-cluster --server=https://$LOCAL_IP:16443
 
+# Ensure that the kubectl setup is working (testing connectivity)
+echo "Testing Kubernetes connectivity..."
+microk8s kubectl get nodes || { echo "Error: Unable to connect to the Kubernetes cluster"; exit 1; }
+
 # Patch Kubernetes Dashboard to expose it on all interfaces (hostPort 8443)
+echo "Patching Kubernetes Dashboard deployment..."
 sudo microk8s kubectl patch deployment kubernetes-dashboard -n kube-system --patch '{"spec":{"template":{"spec":{"containers":[{"name":"kubernetes-dashboard","ports":[{"containerPort":8443,"hostPort":8443}]}]}}}}'
 
 # Install Helm
+echo "Installing Helm..."
 sudo snap install helm --classic
 
 # Add GitLab Helm repository
+echo "Adding GitLab Helm repository..."
 helm repo add gitlab https://charts.gitlab.io
 helm repo update
 
 # Create a namespace for GitLab and install GitLab
+echo "Creating namespace for GitLab and installing GitLab..."
 microk8s kubectl create namespace gitlab
 helm install gitlab gitlab/gitlab --namespace gitlab
 
@@ -61,6 +72,7 @@ echo "Waiting for GitLab to be deployed..."
 sleep 60  # Wait time may vary depending on resources
 
 # Create the folder structure
+echo "Creating folder structure..."
 mkdir -p ~/server/game-server/spt_dedicated
 
 # Print completion message
