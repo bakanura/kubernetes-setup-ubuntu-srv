@@ -13,11 +13,8 @@ sudo snap install microk8s --classic
 # Add the user 'baka' to the 'microk8s' group to allow access to kubectl
 sudo usermod -a -G microk8s baka
 
-# Apply new group membership immediately using 'newgrp'
-echo "Reloading group membership for 'baka'..."
-newgrp microk8s <<EOF
-echo "Group membership for 'baka' has been reloaded."
-EOF
+# Notify user to log out and log back in for group membership to take effect
+echo "Please log out and log back in for group membership to take effect."
 
 # Ensure the .kube directory exists for 'baka' user
 if [ ! -d "/home/baka/.kube" ]; then
@@ -27,65 +24,74 @@ if [ ! -d "/home/baka/.kube" ]; then
 fi
 
 # Enable necessary MicroK8s services (dns, storage, and dashboard)
-echo "Enabling MicroK8s services: DNS, Storage, and Dashboard..."
 microk8s enable dns storage dashboard
 
-# Update the MicroK8s API server to bind to the local IP
-echo "Updating API server bind address to $LOCAL_IP"
-sudo sed -i "s/--bind-address=0.0.0.0/--bind-address=$LOCAL_IP/" /var/snap/microk8s/current/args/kube-apiserver
-
-# Reload systemd to ensure any new unit files are recognized
-sudo systemctl daemon-reload
-
-# Restart the entire MicroK8s service to apply changes
+# Restart MicroK8s to apply configuration changes
 echo "Restarting MicroK8s services..."
 sudo snap restart microk8s
 
+# Wait for the Kubernetes API server to be fully available
+echo "Waiting for Kubernetes API server to be available..."
+# Loop until kubectl can successfully contact the API server
+until microk8s kubectl get nodes &>/dev/null; do
+  echo "Waiting for the Kubernetes API server to be available..."
+  sleep 5
+done
+
 # Update the kubectl config to use the new server address
-echo "Updating kubectl config to use the new server address..."
 microk8s kubectl config set-cluster microk8s-cluster --server=https://$LOCAL_IP:16443
 
-# Ensure that the kubectl setup is working (testing connectivity)
-echo "Testing Kubernetes connectivity..."
-microk8s kubectl get nodes || { echo "Error: Unable to connect to the Kubernetes cluster"; exit 1; }
+# Wait for kubeconfig to be fully applied
+echo "Waiting for kubectl to be fully configured..."
+sleep 5  # Allow some time for kubeconfig to take effect
 
-# Patch Kubernetes Dashboard to expose it on all interfaces (hostPort 8443)
-echo "Patching Kubernetes Dashboard deployment..."
-sudo microk8s kubectl patch deployment kubernetes-dashboard -n kube-system --patch '{"spec":{"template":{"spec":{"containers":[{"name":"kubernetes-dashboard","ports":[{"containerPort":8443,"hostPort":8443}]}]}}}}'
+# Test the kubectl connection
+echo "Testing kubectl connection..."
+microk8s kubectl get nodes
 
-# Install Helm
-echo "Installing Helm..."
-sudo snap install helm --classic
-
-# Add GitLab Helm repository
-echo "Adding GitLab Helm repository..."
-helm repo add gitlab https://charts.gitlab.io
+# Add the Wiki.js Helm chart repository
+echo "Adding Wiki.js Helm repository..."
+helm repo add wikijs https://charts.js.wiki
 helm repo update
 
-# Create a namespace for GitLab and install GitLab
-echo "Creating namespace for GitLab and installing GitLab..."
-microk8s kubectl create namespace gitlab
-helm install gitlab gitlab/gitlab --namespace gitlab
+# Verify the Helm repository has been added
+echo "Verifying the Wiki.js Helm repository..."
+helm repo list
 
-# Wait for GitLab pods to be created (optional)
-echo "Waiting for GitLab to be deployed..."
+# Create a namespace for Wiki.js
+echo "Creating namespace 'wikijs'..."
+microk8s kubectl create namespace wikijs || echo "Namespace 'wikijs' already exists."
+
+# Install Wiki.js using Helm (correct chart name)
+echo "Installing Wiki.js..."
+helm install wikijs wikijs/wiki --namespace wikijs
+
+# Wait for Wiki.js pods to be created (optional)
+echo "Waiting for Wiki.js to be deployed..."
 sleep 60  # Wait time may vary depending on resources
 
-# Create the folder structure
-echo "Creating folder structure..."
-mkdir -p ~/server/game-server/spt_dedicated
+# Verify the deployment exists
+DEPLOYMENT_EXISTS=$(microk8s kubectl get deployment wikijs -n wikijs --ignore-not-found)
+if [ -z "$DEPLOYMENT_EXISTS" ]; then
+  echo "Wiki.js deployment failed to create."
+  exit 1
+fi
+
+# Expose Wiki.js via NodePort
+microk8s kubectl expose deployment wikijs --type=NodePort --name=wikijs-service --port=80 --target-port=3000 --namespace wikijs
+
+# Get the exposed service port
+EXTERNAL_PORT=$(microk8s kubectl get svc wikijs-service -n wikijs -o=jsonpath='{.spec.ports[0].nodePort}')
+
+if [ -z "$EXTERNAL_PORT" ]; then
+  echo "Failed to expose Wiki.js service on NodePort."
+  exit 1
+fi
+
+echo "Wiki.js is exposed on port $EXTERNAL_PORT. You can access it at http://$LOCAL_IP:$EXTERNAL_PORT"
 
 # Print completion message
-echo "Setup complete: MicroK8s, Kubernetes Dashboard, GitLab, and folder structure are ready."
-
-# Output the URL for accessing the Kubernetes dashboard (you can open this on your local network)
-echo "You can access the Kubernetes Dashboard at https://$LOCAL_IP:8443"
-
-# To get your local IP address (for accessing the dashboard and other services)
-echo "Your local IP address is: $LOCAL_IP"
-
-# Provide instructions to access GitLab
-echo "GitLab is being deployed. You can access it using the external IP of the GitLab service (use 'microk8s kubectl get svc --namespace gitlab' to check)."
+echo "Setup complete: Wiki.js is ready to use."
 
 # Complete
 echo "Group membership applied. Kubernetes cluster setup is complete."
